@@ -74,7 +74,7 @@
         <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 shadow-sm">
           <span class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
           <span class="text-xs sm:text-sm font-bold text-blue-900 tracking-wide">
-            prepared by Dr. Scott
+            prepared by Dr. Scott 
           </span>
         </div>
         <span class="text-[11px] text-slate-400 mt-0.5 hidden sm:inline">香港兒科生長數據標準</span>
@@ -172,7 +172,7 @@
               <div class="relative">
                 <input type="number" id="inputHeight" min="30" max="210" step="0.1" value="110.0" required
                   class="w-full pl-3.5 pr-14 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition font-semibold text-slate-800 text-base"
-                  placeholder="例如 110.0">
+                  placeholder="例如 110.0" oninput="calculatePercentiles()" onchange="calculatePercentiles()">
                 <span class="absolute right-3.5 top-3 text-xs font-bold text-slate-400 pointer-events-none">cm (厘米)</span>
               </div>
               <p class="text-[11px] text-slate-400 mt-1">2歲以下請輸入臥位身長 (Recumbent Length)</p>
@@ -186,13 +186,13 @@
               <div class="relative">
                 <input type="number" id="inputWeight" min="1.5" max="150" step="0.05" value="18.5" required
                   class="w-full pl-3.5 pr-14 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition font-semibold text-slate-800 text-base"
-                  placeholder="例如 18.5">
+                  placeholder="例如 18.5" oninput="calculatePercentiles()" onchange="calculatePercentiles()">
                 <span class="absolute right-3.5 top-3 text-xs font-bold text-slate-400 pointer-events-none">kg (公斤)</span>
               </div>
             </div>
 
             <!-- Calculate Button -->
-            <button type="submit" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm tracking-wide shadow-md shadow-blue-500/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2">
+            <button type="submit" onclick="calculatePercentiles()" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm tracking-wide shadow-md shadow-blue-500/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
               </svg>
@@ -421,7 +421,7 @@
           © 2026 香港生長圖表計算器 (Hong Kong Child Growth Chart) · 數據源自香港兒童生長發育常模標準
         </div>
         <div class="font-semibold text-slate-400">
-          Prepared by Dr. Scott
+          Prepared by Dr. Scott 
         </div>
       </div>
     </div>
@@ -844,22 +844,27 @@
     }
 
     // Helper: Calculate exact percentile using Z-score interpolation
-    function calculatePercentileFromValues(percentileValues, val) {
+    function calculatePercentileFromValues(percentileValues, rawVal) {
+      const val = Number(rawVal);
+      if (isNaN(val) || val <= 0) return 50.0;
+
       // percentileValues array has 9 items corresponding to:
       // [0.4, 2, 9, 25, 50, 75, 91, 98, 99.6]
       // Z-scores: [-2.652, -2.054, -1.341, -0.6745, 0.0, 0.6745, 1.341, 2.054, 2.652]
       
-      // If below lowest percentile
+      // If below lowest percentile (P0.4)
       if (val <= percentileValues[0]) {
-        const slope = (Z_SCORES[1] - Z_SCORES[0]) / (percentileValues[1] - percentileValues[0]);
+        const denom = (percentileValues[1] - percentileValues[0]) || 1.0;
+        const slope = (Z_SCORES[1] - Z_SCORES[0]) / denom;
         const z = Z_SCORES[0] - (percentileValues[0] - val) * slope;
         const p = stdNormalCDF(z) * 100;
         return Math.max(0.1, p);
       }
 
-      // If above highest percentile
+      // If above highest percentile (P99.6)
       if (val >= percentileValues[8]) {
-        const slope = (Z_SCORES[8] - Z_SCORES[7]) / (percentileValues[8] - percentileValues[7]);
+        const denom = (percentileValues[8] - percentileValues[7]) || 1.0;
+        const slope = (Z_SCORES[8] - Z_SCORES[7]) / denom;
         const z = Z_SCORES[8] + (val - percentileValues[8]) * slope;
         const p = stdNormalCDF(z) * 100;
         return Math.min(99.9, p);
@@ -870,13 +875,15 @@
         const vA = percentileValues[i];
         const vB = percentileValues[i + 1];
         if (val >= vA && val <= vB) {
-          const ratio = (val - vA) / (vB - vA);
+          const span = (vB - vA) || 0.0001;
+          const ratio = (val - vA) / span;
           const z = Z_SCORES[i] + ratio * (Z_SCORES[i + 1] - Z_SCORES[i]);
           return stdNormalCDF(z) * 100;
         }
       }
 
-      return 50.0;
+      // Safe fallback based on median
+      return val >= percentileValues[4] ? 50.1 : 49.9;
     }
 
     let currentSex = 'boy';
@@ -1218,6 +1225,15 @@
 
     // Initial load setup
     window.onload = function() {
+      // Bind real-time input listeners to all data inputs to guarantee immediate calculation on mobile and desktop
+      ['inputYears', 'inputMonths', 'inputAgeDecimal', 'inputHeight', 'inputWeight'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('input', calculatePercentiles);
+          el.addEventListener('change', calculatePercentiles);
+          el.addEventListener('keyup', calculatePercentiles);
+        }
+      });
       syncAgeFromYM();
     };
   </script>
