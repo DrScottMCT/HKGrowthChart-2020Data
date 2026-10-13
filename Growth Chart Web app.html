@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>香港兒童生長圖表計算器 | HK Growth Chart Percentile Calculator</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for Growth Curve Plotting -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+            },
+            girl: {
+              50: '#fdf2f8',
+              500: '#ec4899',
+              600: '#db2777',
+            },
+            boy: {
+              50: '#f0f9ff',
+              500: '#0ea5e9',
+              600: '#0284c7',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background-color: #cbd5e1;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
+  <!-- Top Navigation / Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-slate-900 leading-tight">
+            香港兒童生長曲線百分位數計算器
+          </h1>
+          <p class="text-xs text-slate-500 font-medium">Hong Kong Child Growth Chart Percentile Calculator (0–18歲)</p>
+        </div>
+      </div>
+
+      <!-- Prepared by Dr. Scott Tang in the top right -->
+      <div class="flex flex-col items-end pl-3">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+          <span class="text-xs sm:text-sm font-bold text-blue-900 tracking-wide">
+            prepared by Dr. Scott Tang
+          </span>
+        </div>
+        <span class="text-[11px] text-slate-400 mt-0.5 hidden sm:inline">香港兒科生長數據標準</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      
+      <!-- Input Sidebar Form -->
+      <section class="lg:col-span-4 flex flex-col gap-6">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+              </svg>
+              輸入生長指標 (Input Data)
+            </h2>
+            <button id="resetBtn" type="button" class="text-xs font-semibold text-slate-400 hover:text-slate-600 hover:underline">
+              重設 (Reset)
+            </button>
+          </div>
+
+          <form id="growthForm" class="space-y-5" onsubmit="event.preventDefault(); calculatePercentiles();">
+            <!-- Sex / Gender -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">性別 (Sex)</label>
+              <div class="grid grid-cols-2 gap-3">
+                <label id="boyLabel" class="flex items-center justify-center gap-2.5 p-3 rounded-xl border-2 border-sky-500 bg-sky-50 text-sky-900 font-semibold cursor-pointer transition-all hover:border-sky-400">
+                  <input type="radio" name="sex" value="boy" class="sr-only" checked onchange="handleSexChange('boy')">
+                  <span class="text-lg">👦</span>
+                  <span>男童 (Boy)</span>
+                </label>
+                <label id="girlLabel" class="flex items-center justify-center gap-2.5 p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-semibold cursor-pointer transition-all hover:border-pink-300">
+                  <input type="radio" name="sex" value="girl" class="sr-only" onchange="handleSexChange('girl')">
+                  <span class="text-lg">👧</span>
+                  <span>女童 (Girl)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Age Mode Switcher -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">年齡 (Age)</label>
+                <div class="flex text-xs bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                  <button type="button" id="modeYearsMonthsBtn" class="px-2.5 py-1 rounded-md font-medium text-slate-800 bg-white shadow-xs transition" onclick="setAgeMode('ym')">歲+月</button>
+                  <button type="button" id="modeDecimalBtn" class="px-2.5 py-1 rounded-md font-medium text-slate-500 hover:text-slate-800 transition" onclick="setAgeMode('decimal')">數值歲數</button>
+                </div>
+              </div>
+
+              <!-- Years + Months Input Container -->
+              <div id="ageYmContainer" class="grid grid-cols-2 gap-3">
+                <div>
+                  <div class="relative">
+                    <input type="number" id="inputYears" min="0" max="18" value="5" step="1" 
+                      class="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition font-semibold text-slate-800"
+                      placeholder="0-18" oninput="syncAgeFromYM()">
+                    <span class="absolute right-3.5 top-3 text-xs font-semibold text-slate-400 pointer-events-none">歲 (yrs)</span>
+                  </div>
+                </div>
+                <div>
+                  <div class="relative">
+                    <input type="number" id="inputMonths" min="0" max="11" value="0" step="1" 
+                      class="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition font-semibold text-slate-800"
+                      placeholder="0-11" oninput="syncAgeFromYM()">
+                    <span class="absolute right-3.5 top-3 text-xs font-semibold text-slate-400 pointer-events-none">月 (mos)</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Decimal Age Input Container (hidden by default) -->
+              <div id="ageDecimalContainer" class="hidden">
+                <div class="relative">
+                  <input type="number" id="inputAgeDecimal" min="0" max="18" step="0.05" value="5.0" 
+                    class="w-full pl-3.5 pr-14 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition font-semibold text-slate-800"
+                    placeholder="例如 3.5" oninput="syncAgeFromDecimal()">
+                  <span class="absolute right-3.5 top-3 text-xs font-semibold text-slate-400 pointer-events-none">歲 (years)</span>
+                </div>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1.5 flex items-center justify-between">
+                <span>適用年齡範圍：0 至 18 歲</span>
+                <span id="computedAgeBadge" class="font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded">計算年齡: 5.00 歲</span>
+              </p>
+            </div>
+
+            <!-- Height (cm) -->
+            <div>
+              <label for="inputHeight" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                身高 / 身長 (Height / Length)
+              </label>
+              <div class="relative">
+                <input type="number" id="inputHeight" min="30" max="210" step="0.1" value="110.0" required
+                  class="w-full pl-3.5 pr-14 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition font-semibold text-slate-800 text-base"
+                  placeholder="例如 110.0">
+                <span class="absolute right-3.5 top-3 text-xs font-bold text-slate-400 pointer-events-none">cm (厘米)</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1">2歲以下請輸入臥位身長 (Recumbent Length)</p>
+            </div>
+
+            <!-- Weight (kg) -->
+            <div>
+              <label for="inputWeight" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                體重 (Weight)
+              </label>
+              <div class="relative">
+                <input type="number" id="inputWeight" min="1.5" max="150" step="0.05" value="18.5" required
+                  class="w-full pl-3.5 pr-14 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition font-semibold text-slate-800 text-base"
+                  placeholder="例如 18.5">
+                <span class="absolute right-3.5 top-3 text-xs font-bold text-slate-400 pointer-events-none">kg (公斤)</span>
+              </div>
+            </div>
+
+            <!-- Calculate Button -->
+            <button type="submit" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm tracking-wide shadow-md shadow-blue-500/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+              即時計算生長百分位數
+            </button>
+          </form>
+        </div>
+
+        <!-- Quick Info Helper Card -->
+        <div class="bg-blue-50/60 rounded-2xl border border-blue-100 p-5 text-xs text-blue-900 leading-relaxed space-y-2">
+          <div class="font-bold flex items-center gap-1.5 text-blue-800 text-sm">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            百分位數解讀指標 (Percentile Reference)
+          </div>
+          <p><span class="font-bold text-emerald-700">第 50 百分位 (P50)：</span> 代表香港同齡同性別兒童之正中平均水平。</p>
+          <p><span class="font-bold text-slate-700">第 25 至 75 百分位：</span> 屬於常見多數兒童之健康生長範圍。</p>
+          <p><span class="font-bold text-amber-700">小於第 2 或大於第 98 百分位：</span> 處於偏極端範圍，建議配合臨床生長曲線趨勢向兒科醫生諮詢。</p>
+        </div>
+      </section>
+
+      <!-- Results and Chart Section -->
+      <section class="lg:col-span-8 flex flex-col gap-6">
+        
+        <!-- Summary Percentile Result Badges -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Height Card -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">身高百分位數</span>
+              <span id="heightBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">正常範圍</span>
+            </div>
+            <div class="my-3">
+              <div class="flex items-baseline gap-1">
+                <span id="heightPercentileVal" class="text-3xl font-extrabold text-blue-600">--</span>
+                <span class="text-xs font-bold text-slate-500">percentile</span>
+              </div>
+              <p id="heightSubtext" class="text-xs text-slate-500 mt-1">同齡中位數 (P50): <span id="medianHeightVal" class="font-bold text-slate-700">--</span> cm</p>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div id="heightProgressBar" class="bg-blue-600 h-1.5 rounded-full transition-all duration-500" style="width: 50%"></div>
+            </div>
+          </div>
+
+          <!-- Weight Card -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">體重百分位數</span>
+              <span id="weightBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">正常範圍</span>
+            </div>
+            <div class="my-3">
+              <div class="flex items-baseline gap-1">
+                <span id="weightPercentileVal" class="text-3xl font-extrabold text-emerald-600">--</span>
+                <span class="text-xs font-bold text-slate-500">percentile</span>
+              </div>
+              <p id="weightSubtext" class="text-xs text-slate-500 mt-1">同齡中位數 (P50): <span id="medianWeightVal" class="font-bold text-slate-700">--</span> kg</p>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div id="weightProgressBar" class="bg-emerald-600 h-1.5 rounded-full transition-all duration-500" style="width: 50%"></div>
+            </div>
+          </div>
+
+          <!-- BMI / Body Stat Card -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">體質指數 BMI</span>
+              <span id="bmiBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">參考值</span>
+            </div>
+            <div class="my-3">
+              <div class="flex items-baseline gap-1">
+                <span id="bmiVal" class="text-3xl font-extrabold text-slate-800">--</span>
+                <span class="text-xs font-bold text-slate-500">kg/m²</span>
+              </div>
+              <p id="bmiSubtext" class="text-xs text-slate-500 mt-1">身高體重協調度評估</p>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div id="bmiProgressBar" class="bg-slate-500 h-1.5 rounded-full transition-all duration-500" style="width: 50%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart Canvas Container -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
+            <div>
+              <h3 id="chartTitle" class="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span>📈</span> 身長/身高生長曲線圖 (Height-for-age Chart)
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">對照香港兒童 0.4, 2, 9, 25, 50, 75, 91, 98, 99.6 百分位線</p>
+            </div>
+
+            <!-- Chart Switcher Tabs -->
+            <div class="flex items-center bg-slate-100 p-1 rounded-xl self-start sm:self-auto border border-slate-200/80">
+              <button type="button" id="tabHeightBtn" onclick="switchChartTab('height')"
+                class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-xs bg-white text-blue-600">
+                身高曲線 (Height)
+              </button>
+              <button type="button" id="tabWeightBtn" onclick="switchChartTab('weight')"
+                class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900">
+                體重曲線 (Weight)
+              </button>
+            </div>
+          </div>
+
+          <!-- Chart Viewport -->
+          <div class="relative w-full h-[380px] sm:h-[430px] pt-4">
+            <canvas id="growthChartCanvas"></canvas>
+          </div>
+
+          <!-- Chart Legend Details -->
+          <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+            <div class="flex items-center flex-wrap gap-3">
+              <span class="inline-flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-full bg-red-500 ring-2 ring-red-200"></span>
+                <span class="font-bold text-slate-700">兒童當前數值 (Current)</span>
+              </span>
+              <span class="inline-flex items-center gap-1.5">
+                <span class="w-3.5 h-1 bg-slate-800 rounded"></span>
+                <span>P50 (中位數)</span>
+              </span>
+              <span class="inline-flex items-center gap-1.5">
+                <span class="w-3.5 h-1 bg-blue-500 rounded"></span>
+                <span>P25 & P75</span>
+              </span>
+              <span class="inline-flex items-center gap-1.5">
+                <span class="w-3.5 h-1 bg-slate-300 rounded"></span>
+                <span>P0.4, P2, P9, P91, P98, P99.6</span>
+              </span>
+            </div>
+            <button onclick="zoomToAgeRange()" class="text-blue-600 hover:text-blue-700 font-semibold text-[11px] flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
+              </svg>
+              <span id="zoomToggleText">放大至臨近歲數 (Zoom in)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Reference Table of Percentiles for Current Age -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+              </svg>
+              當前年齡 (<span id="tableAgeLabel" class="text-blue-600 font-semibold">5.0歲</span>) 各百分位數對照表
+            </h4>
+            <span class="text-xs text-slate-400">香港生長常模數據 (HK Standard)</span>
+          </div>
+
+          <div class="overflow-x-auto custom-scrollbar mt-4">
+            <table class="w-full text-center text-xs">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                  <th class="py-2.5 px-3 text-left">生長指標 (Metric)</th>
+                  <th class="py-2.5 px-2">P0.4</th>
+                  <th class="py-2.5 px-2">P2</th>
+                  <th class="py-2.5 px-2">P9</th>
+                  <th class="py-2.5 px-2">P25</th>
+                  <th class="py-2.5 px-2.5 bg-blue-50 text-blue-900 font-extrabold">P50 (中位)</th>
+                  <th class="py-2.5 px-2">P75</th>
+                  <th class="py-2.5 px-2">P91</th>
+                  <th class="py-2.5 px-2">P98</th>
+                  <th class="py-2.5 px-2">P99.6</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-slate-700 font-medium font-mono text-[11px]">
+                <tr id="rowTableHeight" class="hover:bg-slate-50/70">
+                  <td class="py-2.5 px-3 text-left font-sans font-bold text-slate-900">身高 (cm)</td>
+                  <td id="th_p0_4">--</td>
+                  <td id="th_p2">--</td>
+                  <td id="th_p9">--</td>
+                  <td id="th_p25">--</td>
+                  <td id="th_p50" class="bg-blue-50/50 font-bold text-blue-700">--</td>
+                  <td id="th_p75">--</td>
+                  <td id="th_p91">--</td>
+                  <td id="th_p98">--</td>
+                  <td id="th_p99_6">--</td>
+                </tr>
+                <tr id="rowTableWeight" class="hover:bg-slate-50/70">
+                  <td class="py-2.5 px-3 text-left font-sans font-bold text-slate-900">體重 (kg)</td>
+                  <td id="tw_p0_4">--</td>
+                  <td id="tw_p2">--</td>
+                  <td id="tw_p9">--</td>
+                  <td id="tw_p25">--</td>
+                  <td id="tw_p50" class="bg-blue-50/50 font-bold text-blue-700">--</td>
+                  <td id="tw_p75">--</td>
+                  <td id="tw_p91">--</td>
+                  <td id="tw_p98">--</td>
+                  <td id="tw_p99_6">--</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+    </div>
+  </main>
+
+  <!-- Webpage Bottom Disclaimer (免責聲明) -->
+  <footer class="mt-auto bg-slate-900 text-slate-400 border-t border-slate-800 text-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="border-b border-slate-800 pb-6 mb-6">
+        <div class="flex items-start gap-3">
+          <div class="w-6 h-6 rounded-md bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-slate-200 mb-1 tracking-wide">免責聲明 (Disclaimer)</h4>
+            <p class="text-slate-400 leading-relaxed text-[13px]">
+              本網頁所提供之香港兒童生長曲線及百分位數計算結果，僅供家長、監護人及醫護人員作一般健康參考及教育用途，絕對不能代替專業醫生的臨床診斷、醫療建議或治療方案。兒童生長發育受遺傳基因、營養、早產週數及個體差異等多種因素影響；如對孩子的身高、體重或生長發育趨勢有任何疑慮，請務必諮詢註冊兒科醫生或專業醫療人員進行全面評估。作者及本網站明確聲明不對任何因使用或參考本計算器內容而導致的直接或間接決定承擔任何法律責任。
+            </p>
+            <p class="text-slate-500 text-[11px] mt-2 leading-relaxed">
+              Medical Disclaimer: The information and percentile calculations provided on this website are for educational and informational purposes only. They are not intended as a substitute for professional medical advice, diagnosis, or treatment. Always consult a qualified pediatrician or healthcare provider regarding any questions or concerns about a child's growth and health.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
+        <div>
+          © 2026 香港生長圖表計算器 (Hong Kong Child Growth Chart) · 數據源自香港兒童生長發育常模標準
+        </div>
+        <div class="font-semibold text-slate-400">
+          Prepared by Dr. Scott Tang
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Raw Percentile Tables extracted directly from the user's PDF documents:
+    // Columns: [0.4%, 2%, 9%, 25%, 50%, 75%, 91%, 98%, 99.6%]
+    // Corresponding standard normal z-scores:
+    const PERCENTILE_KEYS = [0.4, 2, 9, 25, 50, 75, 91, 98, 99.6];
+    const Z_SCORES = [-2.652, -2.054, -1.341, -0.6745, 0.0, 0.6745, 1.341, 2.054, 2.652];
+
+    // Girls Height Data [age, p0.4, p2, p9, p25, p50, p75, p91, p98, p99.6]
+    const GIRLS_HEIGHT = [
+      [0.0, 44.98, 45.95, 46.93, 47.90, 48.92, 49.92, 50.93, 51.95, 52.98],
+      [0.1, 48.60, 49.65, 50.72, 51.79, 52.87, 53.96, 55.06, 56.17, 57.29],
+      [0.2, 52.19, 53.33, 54.47, 55.63, 56.80, 57.98, 59.17, 60.37, 61.58],
+      [0.25, 54.87, 56.07, 57.28, 58.50, 59.73, 60.98, 62.24, 63.51, 64.80],
+      [0.3, 57.11, 58.36, 59.62, 60.90, 62.19, 63.49, 64.81, 66.15, 67.50],
+      [0.4, 58.98, 60.28, 61.59, 62.91, 64.25, 65.60, 66.98, 68.36, 69.77],
+      [0.5, 60.73, 62.06, 63.42, 64.78, 66.17, 67.57, 68.99, 70.43, 71.89],
+      [0.6, 62.27, 63.65, 65.04, 66.44, 67.87, 69.32, 70.79, 72.27, 73.78],
+      [0.7, 63.74, 65.15, 66.58, 68.02, 69.49, 70.98, 72.49, 74.02, 75.57],
+      [0.8, 65.05, 66.49, 67.95, 69.43, 70.94, 72.47, 74.02, 75.59, 77.18],
+      [0.85, 66.25, 67.73, 69.22, 70.74, 72.28, 73.84, 75.43, 77.04, 78.68],
+      [0.9, 67.41, 68.91, 70.44, 71.99, 73.56, 75.16, 76.79, 78.44, 80.12],
+      [1.0, 68.46, 69.99, 71.54, 73.12, 74.73, 76.36, 78.02, 79.71, 81.43],
+      [1.1, 69.48, 71.04, 72.62, 74.23, 75.87, 77.54, 79.23, 80.96, 82.71],
+      [1.2, 70.43, 72.01, 73.61, 75.25, 76.92, 78.62, 80.35, 82.11, 83.90],
+      [1.25, 71.36, 72.96, 74.60, 76.26, 77.96, 79.69, 81.45, 83.25, 85.07],
+      [1.3, 72.22, 73.85, 75.51, 77.21, 78.93, 80.69, 82.48, 84.31, 86.17],
+      [1.4, 73.05, 74.71, 76.39, 78.11, 79.87, 81.66, 83.48, 85.34, 87.24],
+      [1.5, 73.88, 75.56, 77.27, 79.02, 80.80, 82.62, 84.48, 86.37, 88.30],
+      [1.6, 74.66, 76.36, 78.09, 79.87, 81.68, 83.52, 85.41, 87.33, 89.30],
+      [1.7, 75.43, 77.15, 78.91, 80.71, 82.55, 84.42, 86.34, 88.30, 90.29],
+      [1.75, 76.15, 77.90, 79.68, 81.50, 83.37, 85.27, 87.21, 89.20, 91.23],
+      [1.8, 76.87, 78.64, 80.45, 82.30, 84.19, 86.12, 88.09, 90.11, 92.17],
+      [1.9, 77.55, 79.34, 81.17, 83.04, 84.95, 86.91, 88.91, 90.96, 93.05],
+      [2.0, 78.21, 80.00, 81.87, 83.77, 85.70, 87.69, 89.71, 91.79, 93.91],
+      [2.1, 78.17, 80.01, 81.88, 83.80, 85.76, 87.77, 89.83, 91.93, 94.09],
+      [2.2, 78.80, 80.66, 82.55, 84.49, 86.48, 88.52, 90.60, 92.73, 94.91],
+      [2.25, 79.44, 81.32, 83.24, 85.20, 87.21, 89.27, 91.38, 93.54, 95.76],
+      [2.3, 80.05, 81.95, 83.89, 85.88, 87.91, 90.00, 92.13, 94.32, 96.56],
+      [2.4, 80.68, 82.59, 84.56, 86.57, 88.63, 90.74, 92.90, 95.12, 97.39],
+      [2.5, 81.27, 83.21, 85.20, 87.23, 89.32, 91.46, 93.65, 95.89, 98.19],
+      [2.6, 81.89, 83.85, 85.86, 87.92, 90.03, 92.19, 94.41, 96.68, 99.00],
+      [2.7, 82.48, 84.46, 86.50, 88.58, 90.71, 92.90, 95.14, 97.44, 99.79],
+      [2.75, 83.07, 85.07, 87.13, 89.23, 91.39, 93.60, 95.87, 98.19, 100.57],
+      [2.8, 83.67, 85.70, 87.77, 89.90, 92.08, 94.32, 96.61, 98.96, 101.37],
+      [2.9, 84.24, 86.29, 88.39, 90.54, 92.75, 95.01, 97.33, 99.70, 102.14],
+      [3.0, 84.83, 86.90, 89.02, 91.20, 93.43, 95.71, 98.06, 100.46, 102.92],
+      [3.1, 85.38, 87.48, 89.62, 91.82, 94.08, 96.39, 98.76, 101.18, 103.67],
+      [3.2, 85.95, 88.07, 90.24, 92.46, 94.74, 97.07, 99.47, 101.92, 104.43],
+      [3.25, 86.49, 88.63, 90.82, 93.07, 95.37, 97.73, 100.14, 102.62, 105.16],
+      [3.3, 87.04, 89.20, 91.42, 93.69, 96.01, 98.39, 100.83, 103.34, 105.90],
+      [3.4, 87.56, 89.75, 91.98, 94.28, 96.62, 99.03, 101.49, 104.02, 106.60],
+      [3.5, 88.08, 90.28, 92.54, 94.86, 97.23, 99.66, 102.14, 104.69, 107.30],
+      [3.6, 88.60, 90.83, 93.11, 95.45, 97.85, 100.30, 102.81, 105.38, 108.01],
+      [3.7, 89.10, 91.35, 93.66, 96.02, 98.44, 100.91, 103.44, 106.04, 108.69],
+      [3.8, 89.62, 91.89, 94.22, 96.60, 99.04, 101.54, 104.10, 106.71, 109.39],
+      [3.85, 90.11, 92.41, 94.76, 97.16, 99.63, 102.15, 104.72, 107.36, 110.06],
+      [3.9, 90.62, 92.94, 95.31, 97.74, 100.23, 102.77, 105.37, 108.03, 110.75],
+      [4.0, 91.10, 93.45, 95.85, 98.30, 100.80, 103.37, 105.99, 108.67, 111.41],
+      [4.1, 91.59, 93.96, 96.38, 98.85, 101.38, 103.97, 106.61, 109.32, 112.08],
+      [4.2, 92.09, 94.48, 96.93, 99.43, 101.98, 104.59, 107.25, 109.98, 112.76],
+      [4.25, 92.58, 94.99, 97.46, 99.98, 102.56, 105.19, 107.88, 110.62, 113.43],
+      [4.3, 93.08, 95.52, 98.01, 100.55, 103.15, 105.81, 108.52, 111.29, 114.11],
+      [4.4, 93.57, 96.03, 98.54, 101.11, 103.73, 106.40, 109.14, 111.93, 114.77],
+      [4.5, 94.07, 96.55, 99.09, 101.68, 104.32, 107.02, 109.78, 112.59, 115.46],
+      [4.6, 94.55, 97.06, 99.62, 102.23, 104.90, 107.62, 110.39, 113.23, 116.12],
+      [4.7, 95.03, 97.56, 100.14, 102.78, 105.47, 108.21, 111.01, 113.86, 116.77],
+      [4.8, 95.52, 98.08, 100.68, 103.34, 106.06, 108.82, 111.64, 114.52, 117.45],
+      [4.85, 96.00, 98.58, 101.21, 103.89, 106.62, 109.41, 112.25, 115.15, 118.10],
+      [4.9, 96.49, 99.09, 101.74, 104.45, 107.21, 110.02, 112.88, 115.80, 118.77],
+      [5.0, 96.96, 99.59, 102.26, 104.99, 107.77, 110.60, 113.48, 116.42, 119.42],
+      [5.5, 99.78, 102.54, 105.35, 108.21, 111.12, 114.08, 117.09, 120.16, 123.29],
+      [6.0, 102.51, 105.39, 108.32, 111.30, 114.34, 117.43, 120.58, 123.78, 127.04],
+      [6.5, 105.15, 108.13, 111.17, 114.27, 117.43, 120.65, 123.93, 127.28, 130.69],
+      [7.0, 107.74, 110.81, 113.96, 117.17, 120.45, 123.81, 127.23, 130.73, 134.31],
+      [7.5, 110.26, 113.43, 116.67, 120.00, 123.41, 126.90, 130.48, 134.15, 137.91],
+      [8.0, 112.77, 116.03, 119.38, 122.83, 126.38, 130.02, 133.77, 137.63, 141.59],
+      [8.5, 115.33, 118.70, 122.17, 125.75, 129.44, 133.25, 137.18, 141.24, 145.42],
+      [9.0, 118.00, 121.49, 125.10, 128.83, 132.68, 136.67, 140.79, 145.05, 149.46],
+      [9.5, 120.82, 124.47, 128.23, 132.13, 136.16, 140.32, 144.63, 149.09, 153.70],
+      [10.0, 123.76, 127.57, 131.50, 135.57, 139.77, 144.10, 148.58, 153.21, 157.99],
+      [10.5, 126.83, 130.81, 134.92, 139.15, 143.50, 147.98, 152.58, 157.33, 162.21],
+      [11.0, 129.89, 134.04, 138.30, 142.66, 147.12, 151.69, 156.36, 161.14, 166.03],
+      [11.5, 132.73, 137.01, 141.37, 145.81, 150.32, 154.90, 159.56, 164.30, 169.11],
+      [12.0, 135.19, 139.54, 143.94, 148.38, 152.86, 157.39, 161.96, 166.57, 171.23],
+      [12.5, 137.22, 141.58, 145.95, 150.34, 154.74, 159.15, 163.57, 168.01, 172.46],
+      [13.0, 138.92, 143.23, 147.54, 151.82, 156.10, 160.37, 164.62, 168.87, 173.10],
+      [13.5, 140.39, 144.62, 148.83, 153.00, 157.14, 161.25, 165.34, 169.40, 173.44],
+      [14.0, 141.65, 145.79, 149.88, 153.94, 157.95, 161.93, 165.88, 169.79, 173.67],
+      [14.5, 142.69, 146.73, 150.72, 154.67, 158.58, 162.45, 166.29, 170.09, 173.85],
+      [15.0, 143.53, 147.48, 151.38, 155.25, 159.08, 162.87, 166.63, 170.36, 174.05],
+      [15.5, 144.19, 148.06, 151.90, 155.70, 159.47, 163.21, 166.92, 170.60, 174.25],
+      [16.0, 144.71, 148.52, 152.29, 156.04, 159.77, 163.47, 167.15, 170.81, 174.45],
+      [16.5, 145.13, 148.87, 152.59, 156.30, 159.99, 163.67, 167.33, 170.99, 174.63],
+      [17.0, 145.47, 149.13, 152.80, 156.46, 160.12, 163.79, 167.46, 171.12, 174.79],
+      [17.5, 145.74, 149.32, 152.92, 156.54, 160.18, 163.84, 167.52, 171.22, 174.93],
+      [18.0, 145.92, 149.42, 152.96, 156.54, 160.16, 163.82, 167.52, 171.26, 175.04]
+    ];
+
+    // Boys Height Data [age, p0.4, p2, p9, p25, p50, p75, p91, p98, p99.6]
+    const BOYS_HEIGHT = [
+      [0.0, 45.51, 46.51, 47.54, 48.58, 49.65, 50.73, 51.84, 52.97, 54.13],
+      [0.1, 49.43, 50.53, 51.65, 52.79, 53.95, 55.14, 56.35, 57.59, 58.85],
+      [0.2, 53.26, 54.44, 55.65, 56.89, 58.15, 59.44, 60.75, 62.10, 63.47],
+      [0.25, 56.14, 57.39, 58.67, 59.98, 61.31, 62.68, 64.07, 65.50, 66.95],
+      [0.3, 58.51, 59.82, 61.16, 62.52, 63.92, 65.35, 66.82, 68.31, 69.84],
+      [0.4, 60.42, 61.77, 63.16, 64.57, 66.03, 67.51, 69.03, 70.59, 72.18],
+      [0.5, 62.09, 63.48, 64.91, 66.38, 67.88, 69.41, 70.98, 72.59, 74.24],
+      [0.6, 63.50, 64.93, 66.40, 67.90, 69.44, 71.02, 72.64, 74.29, 75.99],
+      [0.7, 64.81, 66.28, 67.78, 69.32, 70.90, 72.52, 74.18, 75.88, 77.62],
+      [0.8, 65.97, 67.47, 69.00, 70.58, 72.19, 73.85, 75.55, 77.29, 79.08],
+      [0.85, 67.06, 68.58, 70.15, 71.75, 73.40, 75.09, 76.83, 78.61, 80.44],
+      [0.9, 68.12, 69.68, 71.27, 72.91, 74.59, 76.32, 78.09, 79.92, 81.79],
+      [1.0, 69.12, 70.70, 72.32, 73.99, 75.70, 77.47, 79.28, 81.14, 83.05],
+      [1.1, 70.12, 71.73, 73.38, 75.08, 76.83, 78.62, 80.47, 82.37, 84.33],
+      [1.2, 71.08, 72.71, 74.39, 76.12, 77.90, 79.73, 81.62, 83.56, 85.55],
+      [1.25, 72.06, 73.73, 75.44, 77.20, 79.01, 80.88, 82.80, 84.78, 86.81],
+      [1.3, 73.02, 74.71, 76.45, 78.24, 80.08, 81.98, 83.94, 85.96, 88.03],
+      [1.4, 73.95, 75.67, 77.44, 79.26, 81.14, 83.07, 85.07, 87.12, 89.24],
+      [1.5, 74.89, 76.64, 78.44, 80.29, 82.20, 84.17, 86.20, 88.29, 90.45],
+      [1.6, 75.76, 77.54, 79.36, 81.24, 83.19, 85.19, 87.25, 89.38, 91.57],
+      [1.7, 76.61, 78.41, 80.26, 82.17, 84.15, 86.18, 88.28, 90.44, 92.67],
+      [1.75, 77.37, 79.19, 81.07, 83.01, 85.01, 87.07, 89.20, 91.40, 93.67],
+      [1.8, 78.08, 79.93, 81.84, 83.80, 85.83, 87.92, 90.08, 92.31, 94.61],
+      [1.9, 78.71, 80.58, 82.51, 84.50, 86.55, 88.57, 90.86, 93.11, 95.45],
+      [2.0, 79.29, 81.18, 83.13, 85.15, 87.22, 89.37, 91.58, 93.87, 96.23],
+      [2.1, 79.16, 81.07, 83.04, 85.08, 87.18, 89.35, 91.59, 93.91, 96.30],
+      [2.2, 79.69, 81.62, 83.62, 85.67, 87.80, 89.99, 92.26, 94.60, 97.02],
+      [2.25, 80.23, 82.19, 84.20, 86.28, 88.43, 90.64, 92.94, 95.30, 97.75],
+      [2.3, 80.76, 82.73, 84.77, 86.87, 89.04, 91.28, 93.60, 96.00, 98.47],
+      [2.4, 81.32, 83.32, 85.37, 87.50, 89.69, 91.96, 94.31, 96.73, 99.23],
+      [2.5, 81.89, 83.91, 85.00, 88.14, 90.36, 92.65, 95.02, 97.47, 100.00],
+      [2.6, 82.51, 84.55, 86.65, 88.83, 91.07, 93.39, 95.79, 98.27, 100.83],
+      [2.7, 83.12, 85.18, 87.31, 89.51, 91.79, 94.13, 96.56, 99.06, 101.65],
+      [2.75, 83.75, 85.84, 87.99, 90.22, 92.52, 94.89, 97.34, 99.88, 102.50],
+      [2.8, 84.40, 86.52, 88.70, 90.95, 93.28, 95.68, 98.16, 100.73, 103.38],
+      [2.9, 85.04, 87.18, 89.39, 91.67, 94.12, 96.45, 98.96, 101.55, 104.23],
+      [3.0, 85.69, 87.86, 90.09, 92.40, 94.78, 97.23, 99.77, 102.39, 105.10],
+      [3.1, 86.31, 88.50, 90.76, 93.09, 95.50, 97.98, 100.55, 103.20, 105.93],
+      [3.2, 86.93, 89.15, 91.44, 93.80, 96.23, 98.74, 101.33, 104.01, 106.77],
+      [3.25, 87.51, 89.75, 92.07, 94.45, 96.91, 99.45, 102.07, 104.77, 107.56],
+      [3.3, 88.09, 90.35, 92.69, 95.11, 97.59, 100.15, 102.80, 105.53, 108.34],
+      [3.4, 88.62, 90.91, 93.28, 95.71, 98.22, 100.81, 103.48, 106.23, 109.07],
+      [3.5, 89.13, 91.45, 93.84, 96.30, 98.83, 101.45, 104.14, 106.91, 109.77],
+      [3.6, 89.64, 91.99, 94.40, 96.89, 99.45, 102.08, 104.80, 107.60, 110.48],
+      [3.7, 90.13, 92.49, 94.93, 97.44, 100.02, 102.68, 105.42, 108.24, 111.14],
+      [3.8, 90.61, 93.00, 95.47, 98.00, 100.61, 103.29, 106.05, 108.89, 111.82],
+      [3.85, 91.07, 93.49, 95.97, 98.53, 101.16, 103.86, 106.65, 109.51, 112.45],
+      [3.9, 91.53, 93.98, 96.49, 99.07, 101.72, 104.45, 107.25, 110.14, 113.10],
+      [4.0, 91.98, 94.45, 96.98, 99.58, 102.26, 105.01, 107.84, 110.74, 113.72],
+      [4.1, 92.42, 94.91, 97.47, 100.10, 102.80, 105.57, 108.41, 111.34, 114.34],
+      [4.2, 92.87, 95.39, 97.97, 100.62, 103.35, 106.14, 109.01, 111.95, 114.97],
+      [4.25, 93.31, 95.85, 98.46, 101.13, 103.88, 106.69, 109.58, 112.54, 115.58],
+      [4.3, 93.77, 96.33, 98.96, 101.66, 104.43, 107.27, 110.17, 113.16, 116.22],
+      [4.4, 94.20, 96.79, 99.45, 102.17, 104.96, 107.82, 110.75, 113.75, 116.83],
+      [4.5, 94.65, 97.27, 99.95, 102.69, 105.51, 108.39, 111.34, 114.36, 117.46],
+      [4.6, 95.09, 97.73, 100.43, 103.20, 106.04, 108.94, 111.91, 114.95, 118.06],
+      [4.7, 95.52, 98.19, 100.92, 103.71, 106.57, 109.49, 112.48, 115.54, 118.67],
+      [4.8, 95.97, 98.66, 101.41, 104.23, 107.11, 110.05, 113.07, 116.15, 119.30],
+      [4.85, 96.40, 99.12, 101.90, 104.73, 107.64, 110.60, 113.64, 116.74, 119.90],
+      [4.9, 96.85, 99.59, 102.39, 105.25, 108.18, 111.17, 114.22, 117.34, 120.53],
+      [5.0, 97.28, 100.04, 102.87, 105.76, 108.70, 111.71, 114.79, 117.93, 121.13],
+      [5.5, 99.89, 102.81, 105.77, 108.80, 111.88, 115.02, 118.22, 121.47, 124.79],
+      [6.0, 102.56, 105.61, 108.71, 111.87, 115.09, 118.36, 121.68, 125.07, 128.51],
+      [6.5, 105.34, 108.51, 111.75, 115.04, 118.39, 121.80, 125.27, 128.79, 132.37],
+      [7.0, 108.17, 111.47, 114.83, 118.26, 121.75, 125.30, 128.92, 132.60, 136.34],
+      [7.5, 110.83, 114.24, 117.72, 121.28, 124.91, 128.61, 132.38, 136.23, 140.16],
+      [8.0, 113.21, 116.74, 120.34, 124.03, 127.80, 131.65, 135.58, 139.61, 143.72],
+      [8.5, 115.39, 119.03, 122.77, 126.59, 130.51, 134.51, 138.62, 142.82, 147.11],
+      [9.0, 117.47, 121.25, 125.12, 129.09, 133.16, 137.33, 141.59, 145.96, 150.44],
+      [9.5, 119.56, 123.50, 127.54, 131.67, 135.89, 140.22, 144.64, 149.17, 153.80],
+      [10.0, 121.75, 125.88, 130.09, 134.38, 138.77, 143.24, 147.80, 152.45, 157.18],
+      [10.5, 124.19, 128.51, 132.91, 137.36, 141.89, 146.48, 151.14, 155.86, 160.64],
+      [11.0, 126.95, 131.48, 136.04, 140.64, 145.28, 149.95, 154.65, 159.38, 164.15],
+      [11.5, 130.10, 134.81, 139.52, 144.23, 148.93, 153.63, 158.32, 163.00, 167.69],
+      [12.0, 133.71, 138.58, 143.39, 148.16, 152.88, 157.55, 162.18, 166.78, 171.33],
+      [12.5, 137.60, 142.56, 147.43, 152.21, 156.90, 161.52, 166.06, 170.52, 174.93],
+      [13.0, 141.40, 146.41, 151.29, 156.03, 160.66, 165.18, 169.60, 173.93, 178.17],
+      [13.5, 144.82, 149.82, 154.65, 159.33, 163.87, 168.28, 172.58, 176.77, 180.86],
+      [14.0, 147.62, 152.56, 157.32, 161.92, 166.36, 170.67, 174.85, 178.92, 182.88],
+      [14.5, 149.83, 154.70, 159.38, 163.89, 168.24, 172.46, 176.55, 180.52, 184.39],
+      [15.0, 151.53, 156.32, 160.93, 165.37, 169.66, 173.81, 177.83, 181.74, 185.54],
+      [15.5, 152.81, 157.54, 162.09, 166.47, 170.71, 174.81, 178.79, 182.65, 186.41],
+      [16.0, 153.78, 158.44, 162.93, 167.27, 171.47, 175.53, 179.48, 183.32, 187.06],
+      [16.5, 154.50, 159.09, 163.52, 167.82, 171.98, 176.02, 179.96, 183.79, 187.52],
+      [17.0, 155.02, 159.54, 163.91, 168.16, 172.29, 176.32, 180.25, 184.08, 187.83],
+      [17.5, 155.42, 159.84, 164.15, 168.35, 172.46, 176.48, 180.41, 184.27, 188.05],
+      [18.0, 155.73, 160.05, 164.28, 168.44, 172.53, 176.54, 180.50, 184.39, 188.22]
+    ];
+
+    // Girls Weight Data [age, p0.4, p2, p9, p25, p50, p75, p91, p98, p99.6]
+    const GIRLS_WEIGHT = [
+      [0.0, 2.30, 2.47, 2.65, 2.84, 3.04, 3.25, 3.47, 3.70, 3.95],
+      [0.1, 3.02, 3.25, 3.49, 3.74, 4.01, 4.28, 4.58, 4.89, 5.21],
+      [0.2, 3.79, 4.07, 4.37, 4.68, 5.01, 5.36, 5.73, 6.12, 6.53],
+      [0.25, 4.36, 4.68, 5.03, 5.39, 5.78, 6.18, 6.61, 7.06, 7.54],
+      [0.3, 4.82, 5.18, 5.55, 5.96, 6.39, 6.84, 7.32, 7.82, 8.35],
+      [0.4, 5.19, 5.58, 5.99, 6.42, 6.88, 7.37, 7.88, 8.43, 9.01],
+      [0.5, 5.52, 5.93, 6.36, 6.83, 7.32, 7.84, 8.39, 8.98, 9.60],
+      [0.6, 5.80, 6.23, 6.69, 7.17, 7.69, 8.24, 8.82, 9.45, 10.11],
+      [0.7, 6.06, 6.50, 6.98, 7.49, 8.03, 8.60, 9.22, 9.87, 10.57],
+      [0.8, 6.27, 6.73, 7.23, 7.75, 8.31, 8.92, 9.56, 10.24, 10.97],
+      [0.85, 6.46, 6.94, 7.44, 7.99, 8.57, 9.19, 9.86, 10.57, 11.33],
+      [0.9, 6.64, 7.12, 7.65, 8.20, 8.80, 9.44, 10.13, 10.87, 11.66],
+      [1.0, 6.79, 7.29, 7.82, 8.40, 9.00, 9.67, 10.38, 11.14, 11.95],
+      [1.1, 6.94, 7.45, 7.99, 8.58, 9.21, 9.88, 10.61, 11.40, 12.24],
+      [1.2, 7.08, 7.59, 8.15, 8.75, 9.39, 10.08, 10.83, 11.63, 12.50],
+      [1.25, 7.21, 7.74, 8.30, 8.91, 9.57, 10.28, 11.05, 11.87, 12.77],
+      [1.3, 7.34, 7.87, 8.45, 9.07, 9.74, 10.47, 11.25, 12.10, 13.02],
+      [1.4, 7.47, 8.01, 8.60, 9.23, 9.92, 10.66, 11.46, 12.33, 13.28],
+      [1.5, 7.60, 8.15, 8.75, 9.40, 10.10, 10.86, 11.68, 12.57, 13.55],
+      [1.6, 7.74, 8.30, 8.90, 9.56, 10.28, 11.05, 11.90, 12.81, 13.81],
+      [1.7, 7.88, 8.45, 9.07, 9.74, 10.47, 11.26, 12.13, 13.07, 14.10],
+      [1.75, 8.02, 8.60, 9.23, 9.91, 10.66, 11.47, 12.36, 13.32, 14.38],
+      [1.8, 8.17, 8.76, 9.41, 10.10, 10.87, 11.70, 12.61, 13.60, 14.69],
+      [1.9, 8.32, 8.93, 9.58, 10.29, 11.07, 11.92, 12.85, 13.87, 14.99],
+      [2.0, 8.48, 9.09, 9.76, 10.49, 11.28, 12.15, 13.11, 14.15, 15.30],
+      [2.1, 8.64, 9.26, 9.94, 10.69, 11.50, 12.39, 13.37, 14.44, 15.63],
+      [2.2, 8.79, 9.43, 10.12, 10.88, 11.71, 12.62, 13.62, 14.72, 15.94],
+      [2.25, 8.95, 9.59, 10.30, 11.07, 11.92, 12.85, 13.88, 15.01, 16.26],
+      [2.3, 9.09, 9.75, 10.47, 11.25, 12.12, 13.07, 14.12, 15.28, 16.56],
+      [2.4, 9.24, 9.90, 10.64, 11.44, 12.32, 13.29, 14.36, 15.55, 16.86],
+      [2.5, 9.37, 10.05, 10.79, 11.61, 12.51, 13.50, 14.59, 15.80, 17.15],
+      [2.6, 9.51, 10.20, 10.95, 11.78, 12.69, 13.70, 14.82, 16.06, 17.44],
+      [2.7, 9.63, 10.33, 11.10, 11.94, 12.87, 13.90, 15.04, 16.30, 17.71],
+      [2.75, 9.76, 10.46, 11.24, 12.10, 13.04, 14.09, 15.25, 16.54, 17.97],
+      [2.8, 9.88, 10.60, 11.39, 12.26, 13.22, 14.28, 15.46, 16.78, 18.25],
+      [2.9, 10.00, 10.73, 11.52, 12.41, 13.38, 14.46, 15.67, 17.01, 18.51],
+      [3.0, 10.12, 10.85, 11.67, 12.56, 13.55, 14.65, 15.88, 17.24, 18.77],
+      [3.1, 10.23, 10.98, 11.80, 12.71, 13.71, 14.83, 16.08, 17.47, 19.03],
+      [3.2, 10.35, 11.10, 11.94, 12.86, 13.88, 15.01, 16.28, 17.70, 19.29],
+      [3.25, 10.46, 11.22, 12.07, 13.00, 14.04, 15.19, 16.48, 17.92, 19.54],
+      [3.3, 10.57, 11.34, 12.20, 13.15, 14.20, 15.37, 16.68, 18.15, 19.80],
+      [3.4, 10.67, 11.46, 12.32, 13.28, 14.35, 15.54, 16.87, 18.36, 20.05],
+      [3.5, 10.78, 11.57, 12.45, 13.42, 14.50, 15.71, 17.06, 18.58, 20.29],
+      [3.6, 10.88, 11.68, 12.57, 13.56, 14.65, 15.88, 17.25, 18.79, 20.54],
+      [3.7, 10.98, 11.79, 12.69, 13.69, 14.80, 16.04, 17.43, 19.00, 20.78],
+      [3.8, 11.08, 11.90, 12.81, 13.82, 14.95, 16.21, 17.62, 19.22, 21.02],
+      [3.85, 11.18, 12.01, 12.93, 13.95, 15.09, 16.37, 17.80, 19.42, 21.26],
+      [3.9, 11.28, 12.12, 13.05, 14.08, 15.24, 16.53, 17.99, 19.64, 21.51],
+      [4.0, 11.38, 12.22, 13.16, 14.21, 15.38, 16.70, 18.17, 19.85, 21.75],
+      [4.1, 11.47, 12.33, 13.28, 14.34, 15.53, 16.86, 18.36, 20.05, 21.98],
+      [4.2, 11.57, 12.44, 13.40, 14.47, 15.67, 17.02, 18.55, 20.27, 22.24],
+      [4.25, 11.67, 12.54, 13.52, 14.60, 15.82, 17.19, 18.73, 20.48, 22.48],
+      [4.3, 11.77, 12.65, 13.64, 14.74, 15.97, 17.36, 18.93, 20.70, 22.74],
+      [4.4, 11.87, 12.76, 13.76, 14.87, 16.12, 17.53, 19.12, 20.92, 22.99],
+      [4.5, 11.97, 12.87, 13.88, 15.01, 16.27, 17.70, 19.31, 21.15, 23.25],
+      [4.6, 12.07, 12.98, 14.00, 15.15, 16.43, 17.87, 19.51, 21.38, 23.51],
+      [4.7, 12.17, 13.10, 14.13, 15.28, 16.58, 18.05, 19.71, 21.60, 23.78],
+      [4.8, 12.28, 13.21, 14.26, 15.43, 16.74, 18.23, 19.92, 21.84, 24.05],
+      [4.85, 12.38, 13.33, 14.38, 15.57, 16.90, 18.41, 20.12, 22.08, 24.33],
+      [4.9, 12.49, 13.45, 14.52, 15.72, 17.07, 18.59, 20.33, 22.32, 24.61],
+      [5.0, 12.60, 13.56, 14.65, 15.86, 17.23, 18.78, 20.54, 22.56, 24.89],
+      [5.5, 13.27, 14.31, 15.47, 16.78, 18.27, 19.96, 21.89, 24.12, 26.71],
+      [6.0, 13.99, 15.10, 16.35, 17.77, 19.38, 21.22, 23.35, 25.81, 28.70],
+      [6.5, 14.75, 15.93, 17.28, 18.80, 20.55, 22.56, 24.89, 27.62, 30.84],
+      [7.0, 15.53, 16.80, 18.24, 19.88, 21.78, 23.96, 26.52, 29.54, 33.13],
+      [7.5, 16.33, 17.68, 19.22, 20.98, 23.02, 25.40, 28.19, 31.52, 35.51],
+      [8.0, 17.15, 18.58, 20.22, 22.11, 24.31, 26.89, 29.94, 33.59, 38.03],
+      [8.5, 18.05, 19.58, 21.33, 23.35, 25.72, 28.51, 31.84, 35.86, 40.79],
+      [9.0, 19.10, 20.73, 22.61, 24.78, 27.34, 30.37, 34.01, 38.44, 43.94],
+      [9.5, 20.35, 22.09, 24.10, 26.45, 29.22, 32.52, 36.52, 41.43, 47.58],
+      [10.0, 21.75, 23.62, 25.79, 28.33, 31.33, 34.94, 39.32, 44.76, 51.64],
+      [10.5, 23.32, 25.33, 27.66, 30.41, 33.66, 37.59, 42.40, 48.41, 56.10],
+      [11.0, 24.96, 27.11, 29.61, 32.56, 36.08, 40.34, 45.59, 52.20, 60.73],
+      [11.5, 26.53, 28.81, 31.47, 34.62, 38.38, 42.95, 48.62, 55.80, 65.17],
+      [12.0, 27.92, 30.31, 33.10, 36.41, 40.38, 45.22, 51.26, 58.95, 69.08],
+      [12.5, 29.10, 31.57, 34.47, 37.91, 42.04, 47.11, 53.44, 61.58, 72.37],
+      [13.0, 30.13, 32.67, 35.65, 39.19, 43.46, 48.71, 55.30, 63.80, 75.17],
+      [13.5, 31.11, 33.71, 36.77, 40.39, 44.78, 50.18, 56.99, 65.82, 77.71],
+      [14.0, 32.08, 34.73, 37.84, 41.55, 46.04, 51.58, 58.57, 67.70, 80.06],
+      [14.5, 32.99, 35.60, 38.86, 42.63, 47.20, 52.85, 60.02, 69.38, 82.15],
+      [15.0, 33.85, 36.58, 39.79, 43.61, 48.25, 53.99, 61.28, 70.85, 83.95],
+      [15.5, 34.61, 37.36, 40.60, 44.46, 49.14, 54.54, 62.32, 72.03, 85.39],
+      [16.0, 35.29, 38.06, 41.31, 45.18, 49.89, 55.72, 63.15, 72.95, 86.49],
+      [16.5, 35.89, 38.66, 41.91, 45.79, 50.50, 56.35, 63.80, 73.64, 87.27],
+      [17.0, 36.42, 39.18, 42.43, 46.30, 51.00, 56.84, 64.28, 74.12, 87.78],
+      [17.5, 36.89, 39.64, 42.87, 46.73, 51.40, 57.21, 64.61, 74.42, 88.05],
+      [18.0, 37.28, 40.02, 43.23, 47.06, 51.70, 57.45, 64.80, 74.53, 88.08]
+    ];
+
+    // Boys Weight Data [age, p0.4, p2, p9, p25, p50, p75, p91, p98, p99.6]
+    const BOYS_WEIGHT = [
+      [0.0, 2.30, 2.56, 2.74, 2.94, 3.15, 3.37, 3.60, 3.85, 4.12],
+      [0.1, 3.25, 3.48, 3.73, 3.99, 4.28, 4.58, 4.90, 5.25, 5.61],
+      [0.2, 4.16, 4.45, 4.77, 5.11, 5.48, 5.87, 6.29, 6.73, 7.20],
+      [0.25, 4.80, 5.14, 5.51, 5.91, 6.33, 6.78, 7.27, 7.79, 8.34],
+      [0.3, 5.28, 5.66, 6.05, 6.50, 6.97, 7.47, 8.00, 8.58, 9.20],
+      [0.4, 5.64, 6.05, 6.48, 6.95, 7.45, 7.99, 8.56, 9.19, 9.85],
+      [0.5, 5.96, 6.39, 6.84, 7.34, 7.87, 8.44, 9.06, 9.72, 10.43],
+      [0.6, 6.22, 6.67, 7.15, 7.66, 8.22, 8.82, 9.47, 10.17, 10.92],
+      [0.7, 6.46, 6.92, 7.42, 7.95, 8.53, 9.16, 9.84, 10.57, 11.37],
+      [0.8, 6.66, 7.13, 7.65, 8.20, 8.80, 9.45, 10.15, 10.92, 11.75],
+      [0.85, 6.84, 7.32, 7.85, 8.42, 9.03, 9.70, 10.43, 11.23, 12.09],
+      [0.9, 7.00, 7.49, 8.03, 8.62, 9.25, 9.94, 10.69, 11.51, 12.41],
+      [1.0, 7.15, 7.65, 8.20, 8.80, 9.45, 10.16, 10.93, 11.78, 12.70],
+      [1.1, 7.30, 7.81, 8.37, 8.98, 9.65, 10.38, 11.17, 12.04, 13.00],
+      [1.2, 7.44, 7.97, 8.54, 9.16, 9.84, 10.59, 11.41, 12.31, 13.29],
+      [1.25, 7.60, 8.13, 8.72, 9.35, 10.05, 10.82, 11.66, 12.59, 13.61],
+      [1.3, 7.76, 8.30, 8.90, 9.55, 10.26, 11.05, 11.92, 12.87, 13.93],
+      [1.4, 7.92, 8.47, 9.08, 9.75, 10.48, 11.29, 12.18, 13.16, 14.26],
+      [1.5, 8.09, 8.65, 9.28, 9.96, 10.71, 11.54, 12.45, 13.47, 14.60],
+      [1.6, 8.25, 8.83, 9.46, 10.16, 10.92, 11.77, 12.72, 13.77, 14.94],
+      [1.7, 8.42, 9.00, 9.65, 10.36, 11.14, 12.01, 12.98, 14.06, 15.27],
+      [1.75, 8.57, 9.16, 9.82, 10.54, 11.35, 12.24, 13.23, 14.34, 15.59],
+      [1.8, 8.71, 9.32, 9.99, 10.72, 11.54, 12.45, 13.47, 14.61, 15.90],
+      [1.9, 8.85, 9.46, 10.14, 10.89, 11.72, 12.65, 13.69, 14.86, 16.18],
+      [2.0, 8.97, 9.59, 10.28, 11.04, 11.89, 12.84, 13.90, 15.10, 16.45],
+      [2.1, 9.09, 9.72, 10.42, 11.19, 12.05, 13.02, 14.11, 15.33, 16.73],
+      [2.2, 9.21, 9.85, 10.55, 11.34, 12.21, 13.20, 14.30, 15.56, 16.99],
+      [2.25, 9.33, 9.97, 10.69, 11.48, 12.37, 13.38, 14.51, 15.79, 17.26],
+      [2.3, 9.45, 10.10, 10.82, 11.63, 12.53, 13.55, 14.71, 16.02, 17.52],
+      [2.4, 9.57, 10.23, 10.97, 11.79, 12.70, 13.74, 14.92, 16.26, 17.80],
+      [2.5, 9.70, 10.37, 11.11, 11.94, 12.88, 13.93, 15.13, 16.51, 18.09],
+      [2.6, 9.84, 10.51, 11.27, 12.11, 13.07, 14.14, 15.37, 16.77, 18.40],
+      [2.7, 9.98, 10.66, 11.43, 12.29, 13.25, 14.35, 15.60, 17.04, 18.71],
+      [2.75, 10.12, 10.81, 11.59, 12.46, 13.45, 14.57, 15.85, 17.32, 19.03],
+      [2.8, 10.27, 10.97, 11.76, 12.65, 13.65, 14.79, 16.10, 17.61, 19.36],
+      [2.9, 10.41, 11.13, 11.93, 12.83, 13.85, 15.01, 16.35, 17.89, 19.69],
+      [3.0, 10.56, 11.29, 12.10, 13.02, 14.05, 15.24, 16.60, 18.18, 20.03],
+      [3.1, 10.70, 11.44, 12.26, 13.19, 14.25, 15.46, 16.84, 18.46, 20.35],
+      [3.2, 10.84, 11.58, 12.42, 13.37, 14.44, 15.67, 17.09, 18.74, 20.68],
+      [3.25, 10.97, 11.72, 12.57, 13.53, 14.62, 15.87, 17.32, 19.00, 20.98],
+      [3.3, 11.09, 11.86, 12.72, 13.69, 14.80, 16.07, 17.54, 19.26, 21.29],
+      [3.4, 11.21, 11.98, 12.85, 13.84, 14.96, 16.25, 17.75, 19.50, 21.57],
+      [3.5, 11.32, 12.10, 12.98, 13.98, 15.12, 16.43, 17.95, 19.73, 21.84],
+      [3.6, 11.42, 12.21, 13.10, 14.12, 15.27, 16.60, 18.15, 19.96, 22.12],
+      [3.7, 11.52, 12.32, 13.22, 14.24, 15.41, 16.76, 18.33, 20.18, 22.38],
+      [3.8, 11.62, 12.43, 13.34, 14.38, 15.56, 16.93, 18.52, 20.40, 22.64],
+      [3.85, 11.72, 12.53, 13.45, 14.50, 15.70, 17.09, 18.70, 20.61, 22.90],
+      [3.9, 11.82, 12.64, 13.57, 14.63, 15.84, 17.25, 18.89, 20.84, 23.17],
+      [4.0, 11.91, 12.74, 13.68, 14.75, 15.98, 17.41, 19.08, 21.05, 23.43],
+      [4.1, 12.01, 12.85, 13.80, 14.88, 16.12, 17.57, 19.26, 21.27, 23.69],
+      [4.2, 12.11, 12.96, 13.92, 15.01, 16.28, 17.74, 19.46, 21.51, 23.97],
+      [4.25, 12.21, 13.07, 14.04, 15.15, 16.43, 17.91, 19.66, 21.74, 24.25],
+      [4.3, 12.32, 13.19, 14.17, 15.29, 16.59, 18.10, 19.87, 21.99, 24.55],
+      [4.4, 12.43, 13.30, 14.30, 15.43, 16.75, 18.28, 20.08, 22.23, 24.85],
+      [4.5, 12.54, 13.43, 14.43, 15.58, 16.91, 18.47, 20.30, 22.49, 25.16],
+      [4.6, 12.65, 13.55, 14.56, 15.73, 17.08, 18.66, 20.52, 22.75, 25.47],
+      [4.7, 12.76, 13.67, 14.20, 15.88, 17.25, 18.85, 20.74, 23.01, 25.78],
+      [4.8, 12.88, 13.80, 14.84, 16.03, 17.42, 19.04, 20.97, 23.28, 26.11],
+      [4.85, 12.99, 13.92, 14.97, 16.18, 17.59, 19.24, 21.19, 23.55, 26.43],
+      [4.9, 13.11, 14.04, 15.11, 16.34, 17.76, 19.44, 21.42, 23.82, 26.77],
+      [5.0, 13.22, 14.17, 15.25, 16.49, 17.93, 19.63, 21.65, 24.09, 27.09],
+      [5.5, 13.87, 14.88, 16.04, 17.38, 18.94, 20.79, 23.01, 25.71, 29.09],
+      [6.0, 14.54, 15.61, 16.85, 18.28, 19.97, 21.98, 24.42, 27.42, 31.22],
+      [6.5, 15.29, 16.44, 17.77, 19.32, 21.15, 23.35, 26.03, 29.38, 33.67],
+      [7.0, 16.16, 17.39, 18.82, 20.50, 22.50, 24.91, 27.88, 31.64, 36.52],
+      [7.5, 17.07, 18.39, 19.93, 21.74, 23.91, 26.56, 29.85, 34.05, 39.60],
+      [8.0, 17.98, 19.39, 21.04, 23.00, 25.35, 28.23, 31.86, 36.55, 42.84],
+      [8.5, 18.90, 20.40, 22.16, 24.25, 26.79, 29.93, 33.90, 39.11, 46.23],
+      [9.0, 19.82, 21.41, 23.28, 25.52, 28.24, 31.64, 35.98, 41.73, 49.74],
+      [9.5, 20.79, 22.47, 24.45, 26.84, 29.76, 33.42, 38.14, 44.49, 53.47],
+      [10.0, 21.84, 23.61, 25.72, 28.26, 31.38, 35.32, 40.45, 47.43, 57.49],
+      [10.5, 23.03, 24.91, 27.14, 29.85, 33.20, 37.44, 43.02, 50.69, 61.96],
+      [11.0, 24.38, 26.38, 28.76, 31.65, 35.24, 39.82, 45.88, 54.32, 66.93],
+      [11.5, 25.92, 28.04, 30.58, 33.67, 37.52, 42.46, 49.05, 58.32, 72.40],
+      [12.0, 27.66, 29.93, 32.64, 35.95, 40.08, 45.41, 52.58, 62.75, 78.46],
+      [12.5, 29.54, 31.96, 34.85, 38.38, 42.82, 48.56, 56.31, 67.43, 84.88],
+      [13.0, 31.42, 33.98, 37.04, 40.80, 45.52, 51.66, 59.99, 72.03, 91.19],
+      [13.5, 33.17, 35.85, 39.07, 43.03, 48.01, 54.49, 63.35, 76.24, 97.01],
+      [14.0, 34.70, 37.49, 40.84, 44.95, 50.15, 56.93, 66.22, 79.84, 102.03],
+      [14.5, 36.06, 38.93, 42.39, 46.64, 52.01, 59.03, 68.69, 82.92, 106.36],
+      [15.0, 37.33, 40.28, 43.83, 48.19, 53.71, 60.94, 70.91, 85.68, 110.21],
+      [15.5, 38.55, 41.57, 45.19, 49.66, 55.31, 62.72, 72.96, 88.19, 113.59],
+      [16.0, 39.69, 42.76, 46.45, 51.00, 56.76, 64.32, 74.78, 90.39, 116.69],
+      [16.5, 40.65, 43.75, 47.50, 52.10, 57.93, 65.59, 76.20, 92.07, 118.95],
+      [17.0, 41.34, 44.47, 48.23, 52.85, 58.71, 66.41, 77.08, 93.06, 120.24],
+      [17.5, 41.76, 44.88, 48.63, 53.24, 59.07, 66.75, 77.38, 93.33, 120.53],
+      [18.0, 41.99, 45.08, 48.80, 53.37, 59.16, 66.76, 77.29, 93.10, 120.13]
+    ];
+
+    // Helper: Cumulative Standard Normal Distribution Φ(z)
+    function stdNormalCDF(z) {
+      // Numerical approximation by Abramowitz and Stegun (formula 7.1.26)
+      const a1 = 0.254829592;
+      const a2 = -0.284496736;
+      const a3 = 1.421413741;
+      const a4 = -1.453152027;
+      const a5 = 1.061405429;
+      const p  = 0.3275911;
+
+      const sign = z < 0 ? -1 : 1;
+      const x = Math.abs(z) / Math.SQRT2;
+
+      const t = 1.0 / (1.0 + p * x);
+      const erf = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+
+      return 0.5 * (1.0 + sign * erf);
+    }
+
+    // Helper: Interpolate percentiles row for a given age from dataset
+    function interpolateTableForAge(dataset, age) {
+      if (age <= dataset[0][0]) {
+        return dataset[0].slice(1);
+      }
+      const last = dataset[dataset.length - 1];
+      if (age >= last[0]) {
+        return last.slice(1);
+      }
+
+      // Find bounding rows
+      for (let i = 0; i < dataset.length - 1; i++) {
+        const rowA = dataset[i];
+        const rowB = dataset[i + 1];
+        if (age >= rowA[0] && age <= rowB[0]) {
+          const ratio = (age - rowA[0]) / (rowB[0] - rowA[0]);
+          const result = [];
+          for (let col = 1; col <= 9; col++) {
+            result.push(rowA[col] + ratio * (rowB[col] - rowA[col]));
+          }
+          return result;
+        }
+      }
+      return dataset[dataset.length - 1].slice(1);
+    }
+
+    // Helper: Calculate exact percentile using Z-score interpolation
+    function calculatePercentileFromValues(percentileValues, val) {
+      // percentileValues array has 9 items corresponding to:
+      // [0.4, 2, 9, 25, 50, 75, 91, 98, 99.6]
+      // Z-scores: [-2.652, -2.054, -1.341, -0.6745, 0.0, 0.6745, 1.341, 2.054, 2.652]
+      
+      // If below lowest percentile
+      if (val <= percentileValues[0]) {
+        const slope = (Z_SCORES[1] - Z_SCORES[0]) / (percentileValues[1] - percentileValues[0]);
+        const z = Z_SCORES[0] - (percentileValues[0] - val) * slope;
+        const p = stdNormalCDF(z) * 100;
+        return Math.max(0.1, p);
+      }
+
+      // If above highest percentile
+      if (val >= percentileValues[8]) {
+        const slope = (Z_SCORES[8] - Z_SCORES[7]) / (percentileValues[8] - percentileValues[7]);
+        const z = Z_SCORES[8] + (val - percentileValues[8]) * slope;
+        const p = stdNormalCDF(z) * 100;
+        return Math.min(99.9, p);
+      }
+
+      // Inside brackets
+      for (let i = 0; i < percentileValues.length - 1; i++) {
+        const vA = percentileValues[i];
+        const vB = percentileValues[i + 1];
+        if (val >= vA && val <= vB) {
+          const ratio = (val - vA) / (vB - vA);
+          const z = Z_SCORES[i] + ratio * (Z_SCORES[i + 1] - Z_SCORES[i]);
+          return stdNormalCDF(z) * 100;
+        }
+      }
+
+      return 50.0;
+    }
+
+    let currentSex = 'boy';
+    let currentAgeMode = 'ym'; // 'ym' or 'decimal'
+    let currentTab = 'height'; // 'height' or 'weight'
+    let isZoomed = false;
+    let growthChartInstance = null;
+
+    // Helper: format ordinal percentile text
+    function formatPercentileText(p) {
+      if (p < 0.4) return '< 0.4th';
+      if (p > 99.6) return '> 99.6th';
+      
+      const rounded = p.toFixed(1);
+      const lastDigit = rounded.slice(-1);
+      let suffix = 'th';
+      if (rounded.endsWith('1') && !rounded.endsWith('11')) suffix = 'st';
+      else if (rounded.endsWith('2') && !rounded.endsWith('12')) suffix = 'nd';
+      else if (rounded.endsWith('3') && !rounded.endsWith('13')) suffix = 'rd';
+      return `${rounded}${suffix}`;
+    }
+
+    // Helper: format percentile category badge
+    function getPercentileStatus(p) {
+      if (p < 2.0) {
+        return { text: '偏低 (< P2)', color: 'bg-amber-100 text-amber-800 border-amber-200' };
+      } else if (p < 9.0) {
+        return { text: '稍偏低 (P2-P9)', color: 'bg-yellow-50 text-yellow-800 border-yellow-200' };
+      } else if (p <= 91.0) {
+        return { text: '健康常規範圍 (P9-P91)', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+      } else if (p <= 98.0) {
+        return { text: '稍偏高 (P91-P98)', color: 'bg-blue-50 text-blue-700 border-blue-200' };
+      } else {
+        return { text: '偏高 (> P98)', color: 'bg-purple-100 text-purple-800 border-purple-200' };
+      }
+    }
+
+    function handleSexChange(sex) {
+      currentSex = sex;
+      const boyLabel = document.getElementById('boyLabel');
+      const girlLabel = document.getElementById('girlLabel');
+      
+      if (sex === 'boy') {
+        boyLabel.className = 'flex items-center justify-center gap-2.5 p-3 rounded-xl border-2 border-sky-500 bg-sky-50 text-sky-900 font-semibold cursor-pointer transition-all shadow-sm';
+        girlLabel.className = 'flex items-center justify-center gap-2.5 p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-semibold cursor-pointer transition-all hover:border-pink-300';
+      } else {
+        girlLabel.className = 'flex items-center justify-center gap-2.5 p-3 rounded-xl border-2 border-pink-500 bg-pink-50 text-pink-900 font-semibold cursor-pointer transition-all shadow-sm';
+        boyLabel.className = 'flex items-center justify-center gap-2.5 p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-semibold cursor-pointer transition-all hover:border-sky-300';
+      }
+      calculatePercentiles();
+    }
+
+    function setAgeMode(mode) {
+      currentAgeMode = mode;
+      const ymContainer = document.getElementById('ageYmContainer');
+      const decContainer = document.getElementById('ageDecimalContainer');
+      const ymBtn = document.getElementById('modeYearsMonthsBtn');
+      const decBtn = document.getElementById('modeDecimalBtn');
+
+      if (mode === 'ym') {
+        ymContainer.classList.remove('hidden');
+        decContainer.classList.add('hidden');
+        ymBtn.className = 'px-2.5 py-1 rounded-md font-medium text-slate-800 bg-white shadow-xs transition';
+        decBtn.className = 'px-2.5 py-1 rounded-md font-medium text-slate-500 hover:text-slate-800 transition';
+        syncAgeFromYM();
+      } else {
+        ymContainer.classList.add('hidden');
+        decContainer.classList.remove('hidden');
+        decBtn.className = 'px-2.5 py-1 rounded-md font-medium text-slate-800 bg-white shadow-xs transition';
+        ymBtn.className = 'px-2.5 py-1 rounded-md font-medium text-slate-500 hover:text-slate-800 transition';
+        syncAgeFromDecimal();
+      }
+    }
+
+    function getEnteredAge() {
+      if (currentAgeMode === 'ym') {
+        const y = parseFloat(document.getElementById('inputYears').value) || 0;
+        const m = parseFloat(document.getElementById('inputMonths').value) || 0;
+        return Math.min(18, Math.max(0, y + m / 12.0));
+      } else {
+        const a = parseFloat(document.getElementById('inputAgeDecimal').value) || 0;
+        return Math.min(18, Math.max(0, a));
+      }
+    }
+
+    function syncAgeFromYM() {
+      const y = parseFloat(document.getElementById('inputYears').value) || 0;
+      const m = parseFloat(document.getElementById('inputMonths').value) || 0;
+      const total = Math.min(18, Math.max(0, y + m / 12.0));
+      document.getElementById('inputAgeDecimal').value = total.toFixed(2);
+      document.getElementById('computedAgeBadge').textContent = `計算年齡: ${total.toFixed(2)} 歲`;
+      calculatePercentiles();
+    }
+
+    function syncAgeFromDecimal() {
+      const dec = parseFloat(document.getElementById('inputAgeDecimal').value) || 0;
+      const y = Math.floor(dec);
+      const m = Math.round((dec - y) * 12);
+      document.getElementById('inputYears').value = y;
+      document.getElementById('inputMonths').value = Math.min(11, m);
+      document.getElementById('computedAgeBadge').textContent = `計算年齡: ${dec.toFixed(2)} 歲`;
+      calculatePercentiles();
+    }
+
+    function switchChartTab(tab) {
+      currentTab = tab;
+      const tabH = document.getElementById('tabHeightBtn');
+      const tabW = document.getElementById('tabWeightBtn');
+      const chartTitle = document.getElementById('chartTitle');
+
+      if (tab === 'height') {
+        tabH.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-xs bg-white text-blue-600';
+        tabW.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900';
+        chartTitle.innerHTML = '<span>📈</span> 身長/身高生長曲線圖 (Height-for-age Chart)';
+      } else {
+        tabW.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-xs bg-white text-blue-600';
+        tabH.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900';
+        chartTitle.innerHTML = '<span>⚖️</span> 體重生長曲線圖 (Weight-for-age Chart)';
+      }
+      renderGrowthChart();
+    }
+
+    function zoomToAgeRange() {
+      isZoomed = !isZoomed;
+      document.getElementById('zoomToggleText').textContent = isZoomed ? '顯示全齡段 0-18歲 (Reset Zoom)' : '放大至臨近歲數 (Zoom in)';
+      renderGrowthChart();
+    }
+
+    function calculatePercentiles() {
+      const age = getEnteredAge();
+      const height = parseFloat(document.getElementById('inputHeight').value) || 0;
+      const weight = parseFloat(document.getElementById('inputWeight').value) || 0;
+
+      // Select active datasets
+      const heightDataset = currentSex === 'boy' ? BOYS_HEIGHT : GIRLS_HEIGHT;
+      const weightDataset = currentSex === 'boy' ? BOYS_WEIGHT : GIRLS_WEIGHT;
+
+      // Interpolate percentiles at child's exact age
+      const hPercentiles = interpolateTableForAge(heightDataset, age);
+      const wPercentiles = interpolateTableForAge(weightDataset, age);
+
+      // Calculate exact percentiles
+      const hPercentile = calculatePercentileFromValues(hPercentiles, height);
+      const wPercentile = calculatePercentileFromValues(wPercentiles, weight);
+
+      // Calculate BMI
+      const heightInMeters = height / 100.0;
+      const bmi = heightInMeters > 0 ? (weight / (heightInMeters * heightInMeters)) : 0;
+
+      // Update Result Cards
+      document.getElementById('heightPercentileVal').textContent = formatPercentileText(hPercentile);
+      document.getElementById('medianHeightVal').textContent = hPercentiles[4].toFixed(1);
+      const hStatus = getPercentileStatus(hPercentile);
+      const hBadge = document.getElementById('heightBadge');
+      hBadge.textContent = hStatus.text;
+      hBadge.className = `text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${hStatus.color}`;
+      document.getElementById('heightProgressBar').style.width = `${Math.min(100, Math.max(3, hPercentile))}%`;
+
+      document.getElementById('weightPercentileVal').textContent = formatPercentileText(wPercentile);
+      document.getElementById('medianWeightVal').textContent = wPercentiles[4].toFixed(1);
+      const wStatus = getPercentileStatus(wPercentile);
+      const wBadge = document.getElementById('weightBadge');
+      wBadge.textContent = wStatus.text;
+      wBadge.className = `text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${wStatus.color}`;
+      document.getElementById('weightProgressBar').style.width = `${Math.min(100, Math.max(3, wPercentile))}%`;
+
+      document.getElementById('bmiVal').textContent = bmi > 0 ? bmi.toFixed(1) : '--';
+      const bmiBadge = document.getElementById('bmiBadge');
+      if (bmi < 14) {
+        bmiBadge.textContent = '偏瘦態';
+        bmiBadge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700';
+      } else if (bmi <= 18.5) {
+        bmiBadge.textContent = '勻稱健康';
+        bmiBadge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700';
+      } else {
+        bmiBadge.textContent = '稍偏豐滿';
+        bmiBadge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700';
+      }
+      document.getElementById('bmiProgressBar').style.width = `${Math.min(100, Math.max(10, (bmi / 30) * 100))}%`;
+
+      // Update Reference Table for Current Age
+      document.getElementById('tableAgeLabel').textContent = `${age.toFixed(2)}歲 (${currentSex === 'boy' ? '男童' : '女童'})`;
+      
+      const pThIds = ['th_p0_4', 'th_p2', 'th_p9', 'th_p25', 'th_p50', 'th_p75', 'th_p91', 'th_p98', 'th_p99_6'];
+      const pTwIds = ['tw_p0_4', 'tw_p2', 'tw_p9', 'tw_p25', 'tw_p50', 'tw_p75', 'tw_p91', 'tw_p98', 'tw_p99_6'];
+
+      for (let i = 0; i < 9; i++) {
+        document.getElementById(pThIds[i]).textContent = hPercentiles[i].toFixed(1);
+        document.getElementById(pTwIds[i]).textContent = wPercentiles[i].toFixed(1);
+      }
+
+      // Re-render chart with user's plotted location
+      renderGrowthChart();
+    }
+
+    function renderGrowthChart() {
+      const ctx = document.getElementById('growthChartCanvas').getContext('2d');
+      const age = getEnteredAge();
+      const height = parseFloat(document.getElementById('inputHeight').value) || 0;
+      const weight = parseFloat(document.getElementById('inputWeight').value) || 0;
+
+      const isHeight = currentTab === 'height';
+      const dataset = isHeight
+        ? (currentSex === 'boy' ? BOYS_HEIGHT : GIRLS_HEIGHT)
+        : (currentSex === 'boy' ? BOYS_WEIGHT : GIRLS_WEIGHT);
+
+      // Determine x-axis bounds (Zoom mode vs Full mode)
+      let minAge = 0;
+      let maxAge = 18;
+      if (isZoomed) {
+        minAge = Math.max(0, Math.floor(age - 2));
+        maxAge = Math.min(18, Math.ceil(age + 2));
+        if (maxAge - minAge < 3) {
+          maxAge = Math.min(18, minAge + 3);
+        }
+      }
+
+      // Filter data points based on age zoom range
+      const filtered = dataset.filter(r => r[0] >= minAge && r[0] <= maxAge);
+
+      const labels = filtered.map(r => r[0]);
+
+      // Build percentile curves:
+      // Indices: 0: 0.4%, 1: 2%, 2: 9%, 3: 25%, 4: 50%, 5: 75%, 6: 91%, 7: 98%, 8: 99.6%
+      const curveConfigs = [
+        { label: 'P99.6', col: 9, color: 'rgba(203, 213, 225, 0.9)', width: 1, dash: [4, 4] },
+        { label: 'P98',   col: 8, color: 'rgba(148, 163, 184, 0.9)', width: 1.2, dash: [3, 3] },
+        { label: 'P91',   col: 7, color: 'rgba(148, 163, 184, 0.9)', width: 1.2, dash: [] },
+        { label: 'P75',   col: 6, color: 'rgba(59, 130, 246, 0.85)', width: 1.6, dash: [] },
+        { label: 'P50 (中位數)', col: 5, color: '#0f172a', width: 2.5, dash: [] },
+        { label: 'P25',   col: 4, color: 'rgba(59, 130, 246, 0.85)', width: 1.6, dash: [] },
+        { label: 'P9',    col: 3, color: 'rgba(148, 163, 184, 0.9)', width: 1.2, dash: [] },
+        { label: 'P2',    col: 2, color: 'rgba(148, 163, 184, 0.9)', width: 1.2, dash: [3, 3] },
+        { label: 'P0.4',  col: 1, color: 'rgba(203, 213, 225, 0.9)', width: 1, dash: [4, 4] }
+      ];
+
+      const datasets = curveConfigs.map(c => ({
+        label: c.label,
+        data: filtered.map(r => ({ x: r[0], y: r[c.col] })),
+        borderColor: c.color,
+        borderWidth: c.width,
+        borderDash: c.dash,
+        pointRadius: 0,
+        fill: false,
+        tension: 0.25
+      }));
+
+      // Current Child's Plotted Point
+      const userValue = isHeight ? height : weight;
+      datasets.push({
+        label: `兒童數值 (${isHeight ? height + ' cm' : weight + ' kg'})`,
+        data: [{ x: age, y: userValue }],
+        borderColor: '#dc2626',
+        backgroundColor: '#ef4444',
+        borderWidth: 3,
+        pointRadius: 7,
+        pointHoverRadius: 9,
+        pointStyle: 'circle',
+        showLine: false,
+        zIndex: 99
+      });
+
+      if (growthChartInstance) {
+        growthChartInstance.destroy();
+      }
+
+      growthChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'nearest',
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              titleFont: { size: 12, weight: 'bold' },
+              bodyFont: { size: 11 },
+              padding: 10,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  return ` ${context.dataset.label}: ${context.parsed.y} ${isHeight ? 'cm' : 'kg'}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: 'linear',
+              title: {
+                display: true,
+                text: '年齡 (歲 / Years)',
+                color: '#64748b',
+                font: { size: 12, weight: '600' }
+              },
+              min: minAge,
+              max: maxAge,
+              grid: {
+                color: 'rgba(226, 232, 240, 0.7)'
+              },
+              ticks: {
+                stepSize: isZoomed ? 0.5 : 1,
+                callback: value => value + ' 歲'
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: isHeight ? '身高 (cm)' : '體重 (kg)',
+                color: '#64748b',
+                font: { size: 12, weight: '600' }
+              },
+              grid: {
+                color: 'rgba(226, 232, 240, 0.7)'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Reset button handler
+    document.getElementById('resetBtn').addEventListener('click', function() {
+      document.getElementById('inputYears').value = 5;
+      document.getElementById('inputMonths').value = 0;
+      document.getElementById('inputAgeDecimal').value = 5.0;
+      document.getElementById('inputHeight').value = 110.0;
+      document.getElementById('inputWeight').value = 18.5;
+      handleSexChange('boy');
+      syncAgeFromYM();
+    });
+
+    // Initial load setup
+    window.onload = function() {
+      syncAgeFromYM();
+    };
+  </script>
+</body>
+</html>
